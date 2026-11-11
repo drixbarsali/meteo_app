@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meteo Italia - Previsioni Roma</title>
+</head>
+<body class="weather-app">
+
+  <!-- Header principale -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="brand">
+        <span class="icon-cloud" aria-hidden="true">☁️</span>
+        <span class="brand-title">METEO | ITALIA</span>
+      </div>
+
+      <search class="search-bar">
+        <form role="search">
+          <input type="search" placeholder="Cerca località (es. Roma, Milano)" aria-label="Cerca località" />
+          <button type="submit" aria-label="Cerca">🔍</button>
+        </form>
+      </search>
+
+      <div class="user-profile">
+        <a href="#account" class="profile-link">
+          <span class="user-avatar" aria-hidden="true">👤</span>
+          <span>Luca | Accedi</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Navigazione categorie -->
+    <nav class="main-nav" aria-label="Navigazione principale">
+      <ul>
+        <li><a href="#home" class="active">Home</a></li>
+        <li><a href="#mappe">Mappe</a></li>
+        <li><a href="#satellite">Satellite</a></li>
+        <li><a href="#radar">Radar</a></li>
+        <li><a href="#notizie">Notizie</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Contenuto Principale con sfondo panoramico -->
+  <main class="dashboard">
+
+    <!-- Barra info località e data -->
+    <div class="location-timestamp">
+      <p>PREVISIONI: <strong>ROMA, LAZIO</strong> | <time datetime="2024-04-24T14:30">Mercoledì, 24 Aprile 2024, 14:30</time></p>
+    </div>
+
+    <!-- Hero: Condizioni Meteo Attuali -->
+    <section class="current-weather-card" aria-labelledby="current-weather-heading">
+      <h2 id="current-weather-heading" class="visually-hidden">Condizioni Meteo Attuali</h2>
+      <p class="location-badge">ROMA | ORA</p>
+      
+      <div class="temp-condition">
+        <span class="temperature">18°C</span>
+        <span class="condition-icon" aria-hidden="true">⛅</span>
+      </div>
+
+      <p class="condition-label">Parzialmente Nuvoloso</p>
+      
+      <ul class="weather-metrics">
+        <li>Percepita: <strong>19°C</strong></li>
+        <li>Vento: <strong>12 km/h SE</strong></li>
+        <li>Umidità: <strong>68%</strong></li>
+        <li>AQI: <strong>35 (Buona)</strong></li>
+      </ul>
+    </section>
+
+    <!-- Griglia Widget Inferiori -->
+    <div class="dashboard-grid">
+
+      <!-- Widget 1: Previsioni Orarie / Tabs del Giorno -->
+      <section class="widget hourly-forecast" aria-labelledby="hourly-forecast-heading">
+        <h2 id="hourly-forecast-heading" class="visually-hidden">Previsioni Orarie</h2>
+        
+        <div class="tab-controls" role="tablist">
+          <button role="tab" aria-selected="true" class="tab active">Oggi 24/04</button>
+          <button role="tab" aria-selected="false" class="tab">Domani 25/04</button>
+        </div>
+
+        <div class="hourly-slider">
+          <ol class="hourly-list">
+            <li class="hourly-item">
+              <time>15:00</time>
+              <span class="icon">⛅</span>
+              <span class="temp">19°C</span>
+              <span class="rain-prob">10%</span>
+            </li>
+            <li class="hourly-item">
+              <time>16:00</time>
+              <span class="icon">☀️</span>
+              <span class="temp">20°C</span>
+              <span class="rain-prob">0%</span>
+            </li>
+            <li class="hourly-item">
+              <time>17:00</time>
+              <span class="icon">⛅</span>
+              <span class="temp">19°C</span>
+              <span class="rain-prob">0%</span>
+            </li>
+            <li class="hourly-item">
+              <time>18:00</time>
+              <span class="icon">☁️</span>
+              <span class="temp">17°C</span>
+              <span class="rain-prob">15%</span>
+            </li>
+            <li class="hourly-item">
+              <time>19:00</time>
+              <span class="icon">☁️</span>
+              <span class="temp">16°C</span>
+              <span class="rain-prob">20%</span>
+            </li>
+          </ol>
+          <!-- Canvas / SVG opzionale per il tracciato della curva termica -->
+          <div class="temperature-trend-graph" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <!-- Widget 2: Mappa Meteo & Radar -->
+      <section class="widget map-widget" aria-labelledby="map-widget-heading">
+        <header class="widget-header">
+          <h2 id="map-widget-heading">Mappa Meteo</h2>
+        </header>
+
+        <div class="map-container">
+          <div class="map-overlay-badge">
+            <span class="icon">⛅</span>
+            <span class="temp">18°</span>
+            <div class="details">
+              <span>Parzialmente Nuvoloso</span>
+              <small>Percepita: 19°C</small>
+            </div>
+            <button class="settings-btn" aria-label="Impostazioni layer mappa">⚙️</button>
+          </div>
+
+          <!-- Mappa interattiva / Radar visualizer -->
+          <div id="radar-map" class="map-viewport" role="region" aria-label="Mappa radar"></div>
+
+          <footer class="map-controls">
+            <span class="control-label">Radar animation</span>
+            <div class="layer-selector">
+              <button class="prev-layer" aria-label="Precedente">&lt;</button>
+              <span class="active-layer">Rain</span>
+              <button class="next-layer" aria-label="Successivo">&gt;</button>
+            </div>
+            <div class="view-toggles">
+              <button aria-label="Vista satellitare">🛰️</button>
+              <button aria-label="Vista nubi">☁️</button>
+            </div>
+          </footer>
+        </div>
+      </section>
+
+      <!-- Widget 3: Previsioni 10 Giorni -->
+      <section class="widget extended-forecast" aria-labelledby="extended-forecast-heading">
+        <header class="widget-header">
+          <h2 id="extended-forecast-heading">Previsioni 10 Giorni</h2>
+        </header>
+
+        <div class="forecast-carousel">
+          <button class="carousel-nav prev" aria-label="Giorni precedenti">&lt;</button>
+          
+          <ol class="days-list">
+            <li class="day-item">
+              <span class="day-name">GIO 25/04</span>
+              <span class="icon">⛅</span>
+              <span class="temps">19°/11°</span>
+            </li>
+            <li class="day-item">
+              <span class="day-name">VEN 26/04</span>
+              <span class="icon">☀️</span>
+              <span class="temps">21°/12°</span>
+            </li>
+            <li class="day-item">
+              <span class="day-name">SAB 27/04</span>
+              <span class="icon">☀️</span>
+              <span class="temps">22°/13°</span>
+            </li>
+            <li class="day-item">
+              <span class="day-name">DOM 28/04</span>
+              <span class="icon">🌦️</span>
+              <span class="temps">18°/10°</span>
+              <span class="pop">(50%)</span>
+            </li>
+            <li class="day-item">
+              <span class="day-name">LUN 29/04</span>
+              <span class="icon">🌧️</span>
+              <span class="temps">16°/9°</span>
+              <span class="pop">(70%)</span>
+            </li>
+            <li class="day-item">
+              <span class="day-name">MAR 30/04</span>
+              <span class="icon">☁️</span>
+              <span class="temps">17°/11°</span>
+            </li>
+            <li class="day-item">
+              <span class="day-name">MER 01/05</span>
+              <span class="icon">☀️</span>
+              <span class="temps">19°/10°</span>
+            </li>
+          </ol>
+
+          <button class="carousel-nav next" aria-label="Giorni successivi">&gt;</button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+</body>
+</html>
