@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>MeteoFlow</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    
+    <meta property="og:title" content="MeteoFlow - Pianifica i tuoi percorsi">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="MeteoFlow thumbnail.png">
+    <meta property="og:url" content="index.html">
+    <meta property="og:description" content="Un'app meteo che ti aiuta a organizzare i tuoi percorsi in tempo reale.">
+    <meta property="og:locale" content="it_IT">
+    <meta property="og:site_name" content="MeteoFlow">
+</head> 
+<body>
+
+    <header>
+        <a href="index.html">
+            <img src="MeteoFlow.png" alt="MeteoFlow Logo">
+        </a>
+
+        <!-- Search box-->
+        <form id="search-form">
+            <input id="search-input" class="searchBox" type="search" name="search" placeholder="Cerca località (es. Roma, Milano)">
+            <input type="submit" value="Cerca" class="searchButton">
+        </form>
+    </header>
+
+    <!-- Hero Section: Yomer will use css to  add a fullwidth hero banner -->
+    <section class="hero-section">
+        <div class="hero-background">
+            <div class="location-header">
+                <!-- JS will insert location & date here -->
+                <p id="location-date"></p>
+            </div>
+
+            <!-- This is the card on the hero image -->
+            <article class="current-weather-card">
+                <header>
+                    <h2 id="current-city"></h2>
+                </header>
+                <div class="weather-main">
+                    <span id="current-temp" class="temperature"></span>
+                    <img id="current-icon" src="" alt="">
+                </div>
+                <p id="current-desc" class="weather-description"></p>
+                
+                <!-- JS will populate feels-like, wind, humidity, AQI -->
+                <footer id="weather-details" class="weather-details"></footer>
+            </article>
+        </div>
+    </section>
+    
+    <main class="dashboard-grid">
+
+        <!-- This is labelled as "1": Hourly Forecast -->
+        <section class="hourly-forecast-section">
+            <nav class="tab-nav">
+                <button id="tab-today" class="tab-btn active">Oggi</button>
+                <button id="tab-tomorrow" class="tab-btn">Domani</button>
+            </nav>
+
+            <div class="hourly-content">
+                <!-- JS will automatically create and insert hourly columns here -->
+                <div id="hourly-items" class="hourly-items"></div>
+
+                <!-- Empty container for a chart library (e.g., Chart.js) -->
+                <div id="temperature-chart" class="temperature-chart"></div>
+            </div>
+        </section>
+
+        <!-- This is labelled as "2" on the image: Weather Map Preview -->
+        <section class="map-section">
+            <h2>Mappa Meteo</h2>
+            <div class="map-container">
+                <div class="map-overlay-info">
+                    <img id="map-icon" src="" alt="">
+                    <span id="map-temp" class="map-temp"></span>
+                    <div class="map-text">
+                        <strong id="map-desc"></strong>
+                        <small id="map-feels-like"></small>
+                    </div>
+                    <button type="button" aria-label="Impostazioni mappa">&#x2699;</button>
+                </div>
+
+                <!-- Map API  is labeled as 3 on the image -->
+                <div id="weather-map"></div>
+
+                <div class="map-controls">
+                    <span>Radar animation</span>
+                    <button id="radar-prev" type="button" aria-label="Precedente">&lt;</button>
+                    <span id="radar-layer-name">Rain</span>
+                    <button id="radar-next" type="button" aria-label="Successivo">&gt;</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: 10-Day Forecast Carousel/List -->
+        <section class="ten-day-forecast-section">
+            <h2>Previsioni 10 Giorni</h2>
+            
+            <div class="forecast-carousel">
+                <button id="days-prev" class="nav-arrow left-arrow" type="button" aria-label="Giorno precedente">&lt;</button>
+                
+                <!-- JS will automatically loop through API data and insert <article class="day-card"> items here -->
+                <div id="days-list" class="days-list"></div>
+
+                <button id="days-next" class="nav-arrow right-arrow" type="button" aria-label="Giorno successivo">&gt;</button>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <p>&copy; 2026 MeteoFlow. Tutti i diritti riservati.</p>
+    </footer>
+
+    <!-- This is for the future Js -->
+    <script src="app.js"></script>
+</body>
+</html>
