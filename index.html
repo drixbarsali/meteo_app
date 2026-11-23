@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>MeteoFlow</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/styles.css">
     
     <meta property="og:title" content="MeteoFlow - Pianifica i tuoi percorsi">
     <meta property="og:type" content="website">
@@ -17,8 +17,10 @@
 <body>
 
     <header>
-        <a href="index.html">
-            <img src="img/MeteoFlow.png" alt="MeteoFlow Logo">
+        <a href="index.html" class="brand">
+            <div class="logo">
+                <img src="img/MeteoFlow.png" alt="MeteoFlow Logo">
+            </div>
         </a>
 
         <!-- Search box-->
@@ -30,11 +32,11 @@
 
     <!-- Hero Section: Yomer will use css to  add a fullwidth hero banner -->
     <section class="hero-section">
-        <div class="hero-background">
-            <div class="location-header">
-                <!-- JS will insert location & date here -->
-                <p id="location-date"></p>
-            </div>
+    <div class="hero-background">
+        <div class="location-header">
+            <h2 id="location-name" class="location">Roma, Lazio |</h2>
+            <p id="location-date" class="location-date">Lunedì, 23 Novembre, 14:30</p>
+        </div>
 
             <!-- This is the card on the hero image -->
             <article class="current-weather-card">
@@ -42,12 +44,11 @@
                     <h2 id="current-city"></h2>
                 </header>
                 <div class="weather-main">
-                    <span id="current-temp" class="temperature"></span>
-                    <img id="current-icon" src="" alt="">
+                    <span id="current-temp" class="temperature">--°C</span>
+                    <span id="current-emoji" class="weather-emoji" aria-hidden="true">⛅</span>
+                    <img id="current-icon" class="weather-icon" src="" alt="" hidden>
                 </div>
-                <p id="current-desc" class="weather-description"></p>
-                
-                <!-- JS will populate feels-like, wind, humidity, AQI -->
+                <p id="current-desc" class="weather-description">Caricamento...</p> <!-- JS will populate feels-like, wind, humidity, AQI -->
                 <footer id="weather-details" class="weather-details"></footer>
             </article>
         </div>
@@ -118,6 +119,6 @@
     </footer>
 
     <!-- This is for the future Js -->
-    <script src="app.js"></script>
+    <script src="js/services.js"></script>
 </body>
 </html>
