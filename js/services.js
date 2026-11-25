@@ -13,8 +13,30 @@ if (form) {
 }
 
 const METEOCONS_BASE_URL = "https://bmcdn.nl/assets/weather-icons/v3.0/fill/svg";
+const DEFAULT_HERO_IMAGE_URL = "https://cdn.mos.cms.futurecdn.net/zWy2ezQgTQkBW8hz9sbedH.jpg";
 const LOADING_EMOJIS = ["☀️", "⛅", "🌧️", "❄️"];
 let loadingIntervalId = null;
+let heroImageRequestId = 0;
+
+const hourlyForecastState = {
+    today: [],
+    tomorrow: [],
+    activeTab: "today"
+};
+
+const MAP_LAYERS = [
+    { label: "Stradale", type: "m" },
+    { label: "Satellite", type: "k" },
+    { label: "Ibrida", type: "h" },
+    { label: "Terreno", type: "p" }
+];
+
+const mapState = {
+    latitude: null,
+    longitude: null,
+    cityName: "",
+    layerIndex: 0
+};
 
 function getFormattedItalianDate(date = new Date()) {
     const formatted = date.toLocaleDateString("it-IT", {
@@ -124,6 +146,9 @@ function startLoadingAnimation(cityName = "Roma") {
         }
     }, 450);
 
+    hourlyForecastState.today = [];
+    hourlyForecastState.tomorrow = [];
+    renderHourlyStatus("Caricamento previsioni orarie...");
     renderTenDayStatus("Caricamento previsioni 10 giorni...");
 }
 
@@ -157,6 +182,9 @@ function showUnavailableState(message = "Dati non disponibili") {
         emojiEl.textContent = "⏳";
     }
 
+    hourlyForecastState.today = [];
+    hourlyForecastState.tomorrow = [];
+    renderHourlyStatus(message);
     renderTenDayStatus(message);
 }
 
@@ -204,10 +232,248 @@ function updateDashboard(data, useMeteoconSvg = false) {
             <span>AQI: ${data.aqi}</span>
         `;
     }
+
+    const mapEmojiEl = document.getElementById("map-emoji");
+    const mapIconEl = document.getElementById("map-icon");
+    const mapTempEl = document.getElementById("map-temp");
+    const mapDescEl = document.getElementById("map-desc");
+    const mapFeelsLikeEl = document.getElementById("map-feels-like");
+
+    if (useMeteoconSvg) {
+        if (mapEmojiEl) mapEmojiEl.hidden = true;
+        if (mapIconEl) {
+            mapIconEl.hidden = false;
+            mapIconEl.src = getMeteoconUrl(data.weatherCode, data.isDay);
+            mapIconEl.alt = data.description;
+        }
+    } else {
+        if (mapIconEl) {
+            mapIconEl.hidden = true;
+            mapIconEl.removeAttribute("src");
+        }
+        if (mapEmojiEl) {
+            mapEmojiEl.hidden = false;
+            mapEmojiEl.textContent = getWeatherEmoji(data.weatherCode, data.isDay);
+        }
+    }
+
+    if (mapTempEl) mapTempEl.textContent = `${Math.round(data.temp)}°C`;
+    if (mapDescEl) mapDescEl.textContent = `${data.city} · ${data.description}`;
+    if (mapFeelsLikeEl) mapFeelsLikeEl.textContent = `Percepita: ${Math.round(data.feelsLike)}°C`;
 }
 
 
 
+
+function renderHourlyStatus(message) {
+    const hourlyItemsEl = document.getElementById("hourly-items");
+    const chartEl = document.getElementById("temperature-chart");
+
+    if (hourlyItemsEl) {
+        hourlyItemsEl.innerHTML = "";
+        const statusEl = document.createElement("p");
+        statusEl.className = "hourly-status";
+        statusEl.textContent = message;
+        hourlyItemsEl.appendChild(statusEl);
+    }
+
+    if (chartEl) {
+        chartEl.innerHTML = "";
+    }
+}
+
+function buildHourlyForecastByDay(hourly, currentTimeStr = "", stepHours = 3) {
+    if (!hourly || !Array.isArray(hourly.time) || hourly.time.length === 0) {
+        return { today: [], tomorrow: [] };
+    }
+
+    const datesOrder = [];
+    const groupedByDate = new Map();
+    const currentDateKey = currentTimeStr ? currentTimeStr.slice(0, 10) : "";
+    const currentHour = currentTimeStr ? parseInt(currentTimeStr.slice(11, 13), 10) : -1;
+
+    for (let i = 0; i < hourly.time.length; i++) {
+        const timeStr = hourly.time[i];
+        const dateKey = timeStr.slice(0, 10);
+        const hourNum = parseInt(timeStr.slice(11, 13), 10);
+
+        if (!groupedByDate.has(dateKey)) {
+            groupedByDate.set(dateKey, []);
+            datesOrder.push(dateKey);
+        }
+
+        if (hourNum % stepHours !== 0) continue;
+
+        const temp = hourly.temperature_2m?.[i];
+        if (typeof temp !== "number") continue;
+
+        const rainChance = hourly.precipitation_probability?.[i];
+        const weatherCode = hourly.weather_code?.[i];
+        const isDayRaw = hourly.is_day?.[i];
+        const isDay = typeof isDayRaw === "number" ? isDayRaw === 1 : hourNum >= 6 && hourNum < 20;
+        const isCurrent =
+            dateKey === currentDateKey &&
+            currentHour >= hourNum &&
+            currentHour < hourNum + stepHours;
+
+        groupedByDate.get(dateKey).push({
+            time: timeStr.slice(11, 16),
+            temp: Math.round(temp),
+            rainChance: typeof rainChance === "number" ? Math.round(rainChance) : null,
+            weatherCode: typeof weatherCode === "number" ? weatherCode : null,
+            isDay,
+            isCurrent
+        });
+    }
+
+    const todayKey = currentDateKey && groupedByDate.has(currentDateKey) ? currentDateKey : datesOrder[0];
+    const todayIndex = datesOrder.indexOf(todayKey);
+    const tomorrowKey = todayIndex >= 0 ? datesOrder[todayIndex + 1] : datesOrder[1];
+
+    return {
+        today: todayKey ? groupedByDate.get(todayKey) || [] : [],
+        tomorrow: tomorrowKey ? groupedByDate.get(tomorrowKey) || [] : []
+    };
+}
+
+function renderTemperatureChart(slots) {
+    const chartEl = document.getElementById("temperature-chart");
+    if (!chartEl) return;
+
+    if (!Array.isArray(slots) || slots.length < 2) {
+        chartEl.innerHTML = "";
+        return;
+    }
+
+    const width = 640;
+    const height = 110;
+    const padX = 36;
+    const padTop = 26;
+    const padBottom = 24;
+    const plotWidth = width - padX * 2;
+    const plotHeight = height - padTop - padBottom;
+
+    const temps = slots.map((s) => s.temp);
+    const minTemp = Math.min(...temps);
+    const maxTemp = Math.max(...temps);
+    const range = maxTemp - minTemp || 2;
+
+    const points = slots.map((slot, i) => {
+        const x = padX + (i / (slots.length - 1)) * plotWidth;
+        const normalized = maxTemp === minTemp ? 0.5 : (slot.temp - minTemp) / range;
+        const y = padTop + (1 - normalized) * plotHeight;
+        return { x, y, slot };
+    });
+
+    let linePath = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+    for (let i = 0; i < points.length - 1; i++) {
+        const curr = points[i];
+        const next = points[i + 1];
+        const midX = ((curr.x + next.x) / 2).toFixed(1);
+        linePath += ` C ${midX} ${curr.y.toFixed(1)}, ${midX} ${next.y.toFixed(1)}, ${next.x.toFixed(1)} ${next.y.toFixed(1)}`;
+    }
+
+    const baseY = height - padBottom + 6;
+    const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${baseY} L ${points[0].x.toFixed(1)} ${baseY} Z`;
+
+    const dotsAndLabels = points
+        .map(({ x, y, slot }) => {
+            const dotColor = slot.isCurrent ? "#f9c74f" : "#00b4d8";
+            const dotRadius = slot.isCurrent ? 5 : 3.8;
+            return `
+                <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${dotRadius}" fill="${dotColor}" stroke="#14181c" stroke-width="2"></circle>
+                <text x="${x.toFixed(1)}" y="${(y - 10).toFixed(1)}" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="600">${slot.temp}°</text>
+                <text x="${x.toFixed(1)}" y="${(height - 5).toFixed(1)}" text-anchor="middle" fill="#94a3b8" font-size="10">${slot.time}</text>
+            `;
+        })
+        .join("");
+
+    chartEl.innerHTML = `
+        <svg class="temperature-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Andamento temperatura oraria">
+            <defs>
+                <linearGradient id="tempAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#00b4d8" stop-opacity="0.35"></stop>
+                    <stop offset="100%" stop-color="#00b4d8" stop-opacity="0.02"></stop>
+                </linearGradient>
+            </defs>
+            <path d="${areaPath}" fill="url(#tempAreaGradient)"></path>
+            <path d="${linePath}" fill="none" stroke="#00b4d8" stroke-width="2.5" stroke-linecap="round"></path>
+            ${dotsAndLabels}
+        </svg>
+    `;
+}
+
+function renderActiveHourlyTab() {
+    const hourlyItemsEl = document.getElementById("hourly-items");
+    if (!hourlyItemsEl) return;
+
+    const slots = hourlyForecastState[hourlyForecastState.activeTab] || [];
+    if (slots.length === 0) {
+        renderHourlyStatus("Previsioni orarie non disponibili");
+        return;
+    }
+
+    hourlyItemsEl.innerHTML = "";
+    const fragment = document.createDocumentFragment();
+
+    slots.forEach((slot) => {
+        const emoji = slot.weatherCode !== null ? getWeatherEmoji(slot.weatherCode, slot.isDay) : "🌡️";
+        const card = document.createElement("article");
+        card.className = slot.isCurrent ? "hourly-card is-current" : "hourly-card";
+        card.innerHTML = `
+            <span class="hourly-time">${slot.time}</span>
+            <span class="hourly-emoji" aria-hidden="true">${emoji}</span>
+            <span class="hourly-temp">${slot.temp}°</span>
+            <span class="hourly-rain">${slot.rainChance !== null ? `💧 ${slot.rainChance}%` : "--"}</span>
+        `;
+        fragment.appendChild(card);
+    });
+
+    hourlyItemsEl.appendChild(fragment);
+    hourlyItemsEl.scrollLeft = 0;
+    renderTemperatureChart(slots);
+}
+
+function setActiveHourlyTab(tabKey) {
+    if (tabKey !== "today" && tabKey !== "tomorrow") return;
+    hourlyForecastState.activeTab = tabKey;
+
+    const todayBtn = document.getElementById("tab-today");
+    const tomorrowBtn = document.getElementById("tab-tomorrow");
+
+    if (todayBtn) {
+        const isToday = tabKey === "today";
+        todayBtn.classList.toggle("active", isToday);
+        todayBtn.setAttribute("aria-pressed", String(isToday));
+    }
+
+    if (tomorrowBtn) {
+        const isTomorrow = tabKey === "tomorrow";
+        tomorrowBtn.classList.toggle("active", isTomorrow);
+        tomorrowBtn.setAttribute("aria-pressed", String(isTomorrow));
+    }
+
+    if (hourlyForecastState[tabKey].length > 0) {
+        renderActiveHourlyTab();
+    }
+}
+
+function setupHourlyTabs() {
+    const todayBtn = document.getElementById("tab-today");
+    const tomorrowBtn = document.getElementById("tab-tomorrow");
+
+    if (todayBtn) {
+        todayBtn.setAttribute("aria-pressed", "true");
+        todayBtn.addEventListener("click", () => setActiveHourlyTab("today"));
+    }
+
+    if (tomorrowBtn) {
+        tomorrowBtn.setAttribute("aria-pressed", "false");
+        tomorrowBtn.addEventListener("click", () => setActiveHourlyTab("tomorrow"));
+    }
+}
+
+setupHourlyTabs();
 
 function renderTenDayStatus(message) {
     const daysListEl = document.getElementById("days-list");
@@ -372,6 +638,206 @@ function setupTenDayCarousel() {
 
 setupTenDayCarousel();
 
+function isValidCityHeroImage(url, width = 0, height = 0) {
+    if (!url || typeof url !== "string" || !url.startsWith("https://")) {
+        return false;
+    }
+
+    const lowerUrl = url.toLowerCase();
+    const blockedExtensions = [".svg", ".gif", ".tif", ".tiff", ".pdf", ".ogv", ".webm"];
+    if (blockedExtensions.some((ext) => lowerUrl.includes(ext))) {
+        return false;
+    }
+
+    const blockedKeywords = [
+        "stemma",
+        "gonfalone",
+        "coat_of_arms",
+        "coat-of-arms",
+        "flag_of",
+        "bandiera",
+        "locator",
+        "location_map",
+        "_map",
+        "mappa",
+        "logo",
+        "icon",
+        "diagram",
+        "chart",
+        "signature"
+    ];
+    if (blockedKeywords.some((keyword) => lowerUrl.includes(keyword))) {
+        return false;
+    }
+
+    if (width && height) {
+        if (width < 600 || width < height) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+async function fetchCityImageUrl(cityName, regionName = "") {
+    // 1. Try Italian Wikipedia lead image for the city
+    try {
+        const wikiUrl = `https://it.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&titles=${encodeURIComponent(cityName)}&prop=pageimages&piprop=thumbnail&pithumbsize=1600`;
+        const wikiRes = await fetch(wikiUrl);
+        if (wikiRes.ok) {
+            const wikiJson = await wikiRes.json();
+            const pages = Object.values(wikiJson?.query?.pages || {});
+            for (const page of pages) {
+                const thumb = page?.thumbnail;
+                if (thumb && isValidCityHeroImage(thumb.source, thumb.width, thumb.height)) {
+                    return thumb.source;
+                }
+            }
+        }
+    } catch (error) {
+        console.warn("Wikipedia city image fetch failed:", error);
+    }
+
+    // 2. Fallback: search Wikimedia Commons for a landscape photo of the city
+    const queries = [
+        `${cityName} ${regionName} panorama`.trim(),
+        `${cityName} Italia`.trim()
+    ];
+
+    for (const query of queries) {
+        try {
+            const commonsUrl = `https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(query)}&gsrlimit=10&prop=imageinfo&iiprop=url|size|mime&iiurlwidth=1600`;
+            const commonsRes = await fetch(commonsUrl);
+            if (!commonsRes.ok) continue;
+
+            const commonsJson = await commonsRes.json();
+            const pages = Object.values(commonsJson?.query?.pages || {});
+            let fallbackMatch = null;
+
+            for (const page of pages) {
+                const info = page?.imageinfo?.[0];
+                if (!info) continue;
+
+                const mime = (info.mime || "").toLowerCase();
+                if (!["image/jpeg", "image/png", "image/webp"].includes(mime)) continue;
+
+                const candidateUrl = info.thumburl || info.url;
+                const width = info.thumbwidth || info.width || 0;
+                const height = info.thumbheight || info.height || 0;
+
+                if (!isValidCityHeroImage(candidateUrl, width, height)) continue;
+
+                if (width / height >= 1.25) {
+                    return candidateUrl;
+                }
+
+                if (!fallbackMatch) {
+                    fallbackMatch = candidateUrl;
+                }
+            }
+
+            if (fallbackMatch) {
+                return fallbackMatch;
+            }
+        } catch (error) {
+            console.warn("Wikimedia Commons city image fetch failed:", error);
+        }
+    }
+
+    return DEFAULT_HERO_IMAGE_URL;
+}
+
+function applyHeroBackgroundImage(imageUrl) {
+    const heroSection = document.querySelector(".hero-section");
+    if (!heroSection) return;
+
+    const safeUrl = imageUrl.replace(/["\\\n\r]/g, "");
+    heroSection.style.setProperty("--hero-bg-image", `url("${safeUrl}")`);
+}
+
+async function updateHeroBackground(cityName, regionName = "") {
+    const requestId = ++heroImageRequestId;
+    const imageUrl = await fetchCityImageUrl(cityName, regionName);
+
+    if (requestId !== heroImageRequestId) return;
+
+    const preloader = new Image();
+    preloader.onload = () => {
+        if (requestId === heroImageRequestId) {
+            applyHeroBackgroundImage(imageUrl);
+        }
+    };
+    preloader.onerror = () => {
+        if (requestId === heroImageRequestId) {
+            applyHeroBackgroundImage(DEFAULT_HERO_IMAGE_URL);
+        }
+    };
+    preloader.src = imageUrl;
+}
+
+function renderGoogleMap() {
+    const mapContainer = document.getElementById("weather-map");
+    const layerNameEl = document.getElementById("radar-layer-name");
+    const layer = MAP_LAYERS[mapState.layerIndex] || MAP_LAYERS[0];
+
+    if (layerNameEl) {
+        layerNameEl.textContent = layer.label;
+    }
+
+    if (!mapContainer || mapState.latitude === null || mapState.longitude === null) {
+        return;
+    }
+
+    const mapSrc = `https://maps.google.com/maps?q=${mapState.latitude},${mapState.longitude}&hl=it&z=12&t=${layer.type}&output=embed`;
+    let iframe = mapContainer.querySelector("iframe.google-map-frame");
+
+    if (!iframe) {
+        mapContainer.innerHTML = "";
+        iframe = document.createElement("iframe");
+        iframe.className = "google-map-frame";
+        iframe.loading = "lazy";
+        iframe.referrerPolicy = "no-referrer-when-downgrade";
+        iframe.allowFullscreen = true;
+        mapContainer.appendChild(iframe);
+    }
+
+    iframe.title = `Mappa Google di ${mapState.cityName}`;
+    iframe.src = mapSrc;
+}
+
+function updateGoogleMap(latitude, longitude, cityName) {
+    mapState.latitude = latitude;
+    mapState.longitude = longitude;
+    mapState.cityName = cityName;
+    renderGoogleMap();
+}
+
+function setupMapControls() {
+    const prevBtn = document.getElementById("radar-prev");
+    const nextBtn = document.getElementById("radar-next");
+    const layerNameEl = document.getElementById("radar-layer-name");
+
+    if (layerNameEl) {
+        layerNameEl.textContent = MAP_LAYERS[mapState.layerIndex].label;
+    }
+
+    if (prevBtn) {
+        prevBtn.addEventListener("click", () => {
+            mapState.layerIndex = (mapState.layerIndex - 1 + MAP_LAYERS.length) % MAP_LAYERS.length;
+            renderGoogleMap();
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener("click", () => {
+            mapState.layerIndex = (mapState.layerIndex + 1) % MAP_LAYERS.length;
+            renderGoogleMap();
+        });
+    }
+}
+
+setupMapControls();
+
 async function fetchWeatherForCity(cityName) {
     startLoadingAnimation(cityName);
 
@@ -392,14 +858,20 @@ async function fetchWeatherForCity(cityName) {
         console.log("Matched place:", place.name, place.country, latitude, longitude);
         const formattedCity = admin1 ? `${name}, ${admin1}` : name;
 
-        // 2. Fetch current weather, air quality, and 10-day forecast in parallel
+        // Update hero background image and Google Map pin for the searched city
+        updateHeroBackground(name, admin1 || "");
+        updateGoogleMap(latitude, longitude, formattedCity);
+
+        // 2. Fetch current weather, air quality, hourly (Oggi/Domani), and 10-day forecast in parallel
         const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day&timezone=auto`;
         const aqiUrl = `https://api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=european_aqi&timezone=auto`;
+        const hourlyForecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&forecast_days=2&hourly=temperature_2m,precipitation_probability,weather_code,is_day,wind_speed_10m&timezone=auto`;
         const weatherUrl10Days = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&forecast_days=10&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=auto`;
 
-        const [weatherRes, aqiRes, tenDaysRes] = await Promise.all([
+        const [weatherRes, aqiRes, hourlyRes, tenDaysRes] = await Promise.all([
             fetch(weatherUrl),
             fetch(aqiUrl),
+            fetch(hourlyForecastUrl),
             fetch(weatherUrl10Days)
         ]);
         if (!weatherRes.ok) throw new Error("Weather fetch failed");
@@ -428,6 +900,18 @@ async function fetchWeatherForCity(cityName) {
             isDay: current.is_day === 1,
             description
         }, false);
+
+        if (hourlyRes.ok) {
+            const hourlyJson = await hourlyRes.json();
+            const parsedHourly = buildHourlyForecastByDay(hourlyJson.hourly, current.time, 3);
+            hourlyForecastState.today = parsedHourly.today;
+            hourlyForecastState.tomorrow = parsedHourly.tomorrow;
+            renderActiveHourlyTab();
+        } else {
+            hourlyForecastState.today = [];
+            hourlyForecastState.tomorrow = [];
+            renderHourlyStatus("Previsioni orarie non disponibili");
+        }
 
         if (tenDaysRes.ok) {
             const tenDaysJson = await tenDaysRes.json();

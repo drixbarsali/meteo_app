@@ -126,13 +126,14 @@ body > header {
   min-height: 360px;
   display: flex;
   align-items: center;
-  background:
+  background-image:
     linear-gradient(to right, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.35) 60%, rgba(0, 0, 0, 0.6) 100%),
-    url("https://cdn.mos.cms.futurecdn.net/zWy2ezQgTQkBW8hz9sbedH.jpg");
+    var(--hero-bg-image, url("https://cdn.mos.cms.futurecdn.net/zWy2ezQgTQkBW8hz9sbedH.jpg"));
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   border-bottom: 1px solid var(--border-subtle);
+  transition: background-image 0.35s ease-in-out;
 }
 
 .hero-background {
@@ -292,6 +293,8 @@ body > header {
   justify-content: space-between;
   gap: 0.65rem;
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(203, 213, 225, 0.25) transparent;
 }
 
 .hourly-items > * {
@@ -300,19 +303,75 @@ body > header {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   padding: 0.65rem 0.4rem;
   border-radius: 8px;
   background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
   text-align: center;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.hourly-card:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.hourly-card.is-current {
+  background-color: rgba(0, 180, 216, 0.12);
+  border-color: rgba(0, 180, 216, 0.45);
+}
+
+.hourly-time {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--light-silver);
+}
+
+.hourly-card.is-current .hourly-time {
+  color: var(--ocean-blue);
+}
+
+.hourly-emoji {
+  font-size: 1.55rem;
+  line-height: 1.1;
+}
+
+.hourly-temp {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--pure-white);
+}
+
+.hourly-rain {
+  font-size: 0.72rem;
+  color: var(--muted-gray);
+}
+
+.hourly-status {
+  width: 100%;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--light-silver);
+  background: transparent;
 }
 
 .temperature-chart {
   width: 100%;
-  min-height: 75px;
+  min-height: 110px;
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(0, 180, 216, 0.08) 0%, rgba(0, 180, 216, 0.01) 100%);
   border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.temperature-chart-svg {
+  width: 100%;
+  height: 110px;
+  display: block;
 }
 
 /* =========================================
@@ -348,6 +407,14 @@ body > header {
   padding: 0.75rem 1rem;
   background-color: #1d2329;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.map-emoji {
+  font-size: 1.75rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #map-icon {
@@ -399,9 +466,18 @@ body > header {
 
 #weather-map {
   width: 100%;
-  min-height: 210px;
+  min-height: 240px;
   flex: 1;
+  display: flex;
   background: radial-gradient(circle at center, rgba(0, 180, 216, 0.22), #0c1014);
+}
+
+.google-map-frame {
+  width: 100%;
+  min-height: 240px;
+  flex: 1;
+  border: 0;
+  display: block;
 }
 
 .map-controls {
